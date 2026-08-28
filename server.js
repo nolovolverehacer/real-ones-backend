@@ -392,7 +392,7 @@ io.on('connection', (socket) => {
       if (!socketDestino) return;
       socketDestino.emit('nueva_ronda', {
         tipo: 'QUE_HARIA',
-        texto: pregunta.texto.replace('{nombre}', objetivo.nombre),
+        texto: pregunta.texto,
         objetivo: { nombre: objetivo.nombre, avatar: objetivo.avatarSigno },
         opciones: pregunta.opciones,
         numero: sala.rondaActual,

@@ -1,154 +1,155 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import Confetti from 'react-confetti';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas'; // 🚀 LIBRERÍA PARA FOTOS DE INSTAGRAM
 import './App.css';
 import { QRCodeCanvas } from 'qrcode.react';
 
-const socket = io('https://real-ones-backend.onrender.com');
+const socket = io('http://localhost:4001');
 
-// Debe coincidir exactamente con los ids de perfiles_finales.json
-const SIGNOS = [
-  { id: 'ARIES', emoji: '♈', nombre: 'Aries' },
-  { id: 'TAURO', emoji: '♉', nombre: 'Tauro' },
-  { id: 'GEMINIS', emoji: '♊', nombre: 'Géminis' },
-  { id: 'CANCER', emoji: '♋', nombre: 'Cáncer' },
-  { id: 'LEO', emoji: '♌', nombre: 'Leo' },
-  { id: 'VIRGO', emoji: '♍', nombre: 'Virgo' },
-  { id: 'LIBRA', emoji: '♎', nombre: 'Libra' },
-  { id: 'ESCORPIO', emoji: '♏', nombre: 'Escorpio' },
-  { id: 'SAGITARIO', emoji: '♐', nombre: 'Sagitario' },
-  { id: 'CAPRICORNIO', emoji: '♑', nombre: 'Capricornio' },
-  { id: 'ACUARIO', emoji: '♒', nombre: 'Acuario' },
-  { id: 'PISCIS', emoji: '♓', nombre: 'Piscis' }
-];
-
-function generarToken() {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-}
-
-function emojiDeSigno(id) {
-  const s = SIGNOS.find(s => s.id === id);
-  return s ? s.emoji : '❓';
-}
+// 🚀 ZOOLÓGICO DE AVATARES (24 opciones)
+const ANIMALES = ['🦊','🐍','🐀','🦉','🐑','🦝','🦍','🐕','🐈','🐖','🐅','🦥','🦦','🦨','🦇','🦩','🦅','🦈','🐊','🦖','🦄','🐸','🐼','🐨'];
 
 function App() {
-  const [pantalla, setPantalla] = useState('INICIO');
-  const [cargando, setCargando] = useState(false);
+  const [pantalla, setPantalla] = useState('INICIO'); 
   const [nombre, setNombre] = useState('');
-  const [signoElegido, setSignoElegido] = useState('ARIES');
   const [codigoSala, setCodigoSala] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('sala') || '';
-  });
-
-  const [miToken] = useState(() => {
-    let t = localStorage.getItem('realOnes_token');
-    if (!t) {
-      t = generarToken();
-      localStorage.setItem('realOnes_token', t);
-    }
-    return t;
-  });
+  const params = new URLSearchParams(window.location.search);
+  return params.get('sala') || '';
+});
+  const [avatarElegido, setAvatarElegido] = useState('🦊'); // Avatar por defecto
 
   const [jugadores, setJugadores] = useState([]);
   const [miSala, setMiSala] = useState('');
   const [miId, setMiId] = useState('');
-  const [composicion, setComposicion] = useState('mixto');
+  
+  const [testSeleccionado, setTestSeleccionado] = useState('TEST_D'); 
 
-  const [rondaActual, setRondaActual] = useState(null); // lo que manda 'nueva_ronda'
-  const [resultadoRonda, setResultadoRonda] = useState(null); // lo que manda 'resultado_ronda'
-  const [avanzando, setAvanzando] = useState(false);
+  const [preguntaActual, setPreguntaActual] = useState(null);
+  const [tiempoRestante, setTiempoRestante] = useState(60);
+  const [opcionElegida, setOpcionElegida] = useState(null);
+  
+  const [prediccionJugador, setPrediccionJugador] = useState('');
+  const [prediccionOpcion, setPrediccionOpcion] = useState('');
 
-  // Estado específico de cada mecánica
-  const [opcionFCElegida, setOpcionFCElegida] = useState(null);
-  const [ordenRanking, setOrdenRanking] = useState([]); // array de ids, en el orden tocado
-  const [letraQueHariaElegida, setLetraQueHariaElegida] = useState(null);
+  const [revelacionData, setRevelacionData] = useState([]);
+  const [cuestionamientos, setCuestionamientos] = useState({});
+  const [tiempoRevelacion, setTiempoRevelacion] = useState(15);
+  const [acusado, setAcusado] = useState(null);
+  const [respuestaAcusado, setRespuestaAcusado] = useState(''); 
 
-  const [resultadosFinales, setResultadosFinales] = useState(null);
+  const [tiempoJuicio, setTiempoJuicio] = useState(30); 
+  const [votoJuicio, setVotoJuicio] = useState(null);
+  const [veredictoFinal, setVeredictoFinal] = useState('');
 
-  const nombreRef = useRef(nombre);
-  useEffect(() => { nombreRef.current = nombre; }, [nombre]);
-  const signoRef = useRef(signoElegido);
-  useEffect(() => { signoRef.current = signoElegido; }, [signoElegido]);
+  const [testFinal, setTestFinal] = useState(null);
+  const [acusacionUsada, setAcusacionUsada] = useState(false);
 
-  // ---------- Reconexión automática (mismo patrón que Sin Careta) ----------
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
   useEffect(() => {
-    const guardado = localStorage.getItem('realOnes_sesion');
-    if (!guardado) return;
-    try {
-      const sesion = JSON.parse(guardado);
-      if (sesion.codigoSala && sesion.nombre && sesion.signo) {
-        setNombre(sesion.nombre);
-        setSignoElegido(sesion.signo);
-        setCodigoSala(sesion.codigoSala);
-        setMiSala(sesion.codigoSala);
-        setCargando(true);
-        socket.emit('unirse_sala', {
-          codigoSala: sesion.codigoSala,
-          nombreUsuario: sesion.nombre,
-          signo: sesion.signo,
-          token: miToken
-        });
-      }
-    } catch (e) {
-      localStorage.removeItem('realOnes_sesion');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const audiosRef = useRef(null);
+
+  useEffect(() => {
+    audiosRef.current = {
+      click: new Audio('/sonidos/click.mp3'),
+      alarma: new Audio('/sonidos/alarma.mp3'),
+      gallina: new Audio('/sonidos/gallina.mp3'),
+      martillazo: new Audio('/sonidos/martillazo.mp3'),
+      tick: new Audio('/sonidos/tick.mp3')
+    };
+    audiosRef.current.tick.loop = true;
+
+    return () => {
+      Object.values(audiosRef.current).forEach(a => {
+        a.pause();
+        a.currentTime = 0;
+      });
+    };
+  }, []);
+
+  const reproducirSonido = (tipo, accion = 'play') => {
+    if (!audiosRef.current || !audiosRef.current[tipo]) return;
+    const audio = audiosRef.current[tipo];
+    
+    if (accion === 'play') {
+      audio.currentTime = 0;
+      audio.play().catch(e => console.log('Audio bloqueado:', e));
+    } else if (accion === 'stop') {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  };
+
+  useEffect(() => {
+    if (pantalla !== 'PREGUNTA' && pantalla !== 'REVELACION' && pantalla !== 'TRIBUNAL') {
+      reproducirSonido('tick', 'stop');
+    }
+  }, [pantalla]);
 
   useEffect(() => {
     socket.on('sala_creada', (data) => {
       setMiSala(data.codigoSala);
       setJugadores(data.jugadores);
       setMiId(socket.id);
-      setCargando(false);
       setPantalla('LOBBY');
-      localStorage.setItem('realOnes_sesion', JSON.stringify({
-        codigoSala: data.codigoSala,
-        nombre: nombreRef.current,
-        signo: signoRef.current
-      }));
     });
 
     socket.on('actualizar_jugadores', (data) => {
       setJugadores(data.jugadores);
       if (!miId) setMiId(socket.id);
-      setCargando(false);
-      setPantalla(prev => prev === 'INICIO' ? 'LOBBY' : prev);
     });
 
-    socket.on('error_conexion', (data) => {
-      alert(data.mensaje);
-      setCargando(false);
-      if (data.mensaje === 'Sala no encontrada') {
-        localStorage.removeItem('realOnes_sesion');
-      }
+    socket.on('error_conexion', (data) => { alert(data.mensaje); });
+
+    socket.on('pantalla_reglas', () => { setPantalla('REGLAS'); }); // 🚀 LLEGAN LAS REGLAS
+
+    socket.on('nueva_pregunta', (data) => {
+      setPreguntaActual(data.pregunta);
+      setOpcionElegida(null);
+      setPrediccionJugador('');
+      setPrediccionOpcion('');
+      setAcusacionUsada(false); 
+      setTiempoRestante(60);
+      setPantalla('PREGUNTA');
     });
 
-    socket.on('pantalla_reglas', (data) => {
-      setComposicion(data.composicion);
-      setPantalla('REGLAS');
+    socket.on('mostrar_revelacion', (data) => {
+      reproducirSonido('tick', 'stop'); 
+      setRevelacionData(data.revelacion);
+      setJugadores(data.jugadores);
+      setCuestionamientos({});
+      setAcusacionUsada(false); 
+      setTiempoRevelacion(15); 
+      setPantalla('REVELACION');
+      
+      const hayTibios = data.revelacion.some(r => r.esTibia);
+      if (hayTibios) reproducirSonido('gallina');
     });
 
-    socket.on('nueva_ronda', (data) => {
-      setRondaActual(data);
-      setResultadoRonda(null);
-      setOpcionFCElegida(null);
-      setOrdenRanking([]);
-      setLetraQueHariaElegida(null);
-      setAvanzando(false);
-      setPantalla('RONDA');
-    });
+    socket.on('actualizar_cuestionamientos', (data) => { setCuestionamientos(data.cuestionamientos); });
 
-    socket.on('resultado_ronda', (data) => {
-      setResultadoRonda(data);
-      if (data.jugadores) setJugadores(data.jugadores);
-      setPantalla('INTERMEDIO');
+    socket.on('fin_juicio', (data) => {
+      reproducirSonido('tick', 'stop');
+      setVeredictoFinal(data.resultado);
+      setJugadores(data.jugadores);
+      reproducirSonido('martillazo'); 
+      setTimeout(() => {
+        setPantalla('INTERMEDIO');
+        setVeredictoFinal('');
+        setVotoJuicio(null);
+      }, 5000);
     });
 
     socket.on('juego_terminado', (data) => {
-      setResultadosFinales(data.resultados);
+      reproducirSonido('tick', 'stop');
+      setJugadores(data.jugadores);
+      setTestFinal(data.testActivo);
       setPantalla('RESULTADOS');
     });
 
@@ -157,341 +158,481 @@ function App() {
       socket.off('actualizar_jugadores');
       socket.off('error_conexion');
       socket.off('pantalla_reglas');
-      socket.off('nueva_ronda');
-      socket.off('resultado_ronda');
+      socket.off('nueva_pregunta');
+      socket.off('mostrar_revelacion');
+      socket.off('actualizar_cuestionamientos');
+      socket.off('fin_juicio');
       socket.off('juego_terminado');
     };
   }, [miId]);
 
-  // ---------- Acciones ----------
+  useEffect(() => {
+    let timer;
+    if (pantalla === 'PREGUNTA' && tiempoRestante > 0 && !opcionElegida) {
+      timer = setTimeout(() => setTiempoRestante((t) => t - 1), 1000);
+      if (tiempoRestante === 10) reproducirSonido('tick', 'play');
+    } 
+    else if (pantalla === 'PREGUNTA' && tiempoRestante === 0 && !opcionElegida) {
+      reproducirSonido('tick', 'stop');
+      const opciones = preguntaActual.opciones;
+      const azar = opciones[Math.floor(Math.random() * opciones.length)].id_opcion;
+      enviarRespuesta(azar);
+    }
+    else if (pantalla === 'REVELACION' && tiempoRevelacion > 0) {
+      timer = setTimeout(() => setTiempoRevelacion((t) => t - 1), 1000);
+      if (tiempoRevelacion === 5) reproducirSonido('tick', 'play');
+    } 
+    else if (pantalla === 'REVELACION' && tiempoRevelacion === 0) {
+      reproducirSonido('tick', 'stop');
+      let maxVotos = 0;
+      let idAcusado = null;
+      
+      Object.keys(cuestionamientos).forEach(id => {
+        const votos = cuestionamientos[id].length;
+        if (votos >= 2 && votos > maxVotos) {
+          maxVotos = votos;
+          idAcusado = id;
+        }
+      });
+
+      if (idAcusado) {
+        const jug = jugadores.find(j => j.id === idAcusado);
+        const dataRevAcusado = revelacionData.find(r => r.idJugador === idAcusado);
+        setAcusado(jug);
+        setRespuestaAcusado(dataRevAcusado?.opcionElegida?.texto || '');
+        setTiempoJuicio(30); 
+        setPantalla('TRIBUNAL'); 
+      } else {
+        setPantalla('INTERMEDIO'); 
+      }
+    }
+    else if (pantalla === 'TRIBUNAL' && tiempoJuicio > 0 && !veredictoFinal) {
+      timer = setTimeout(() => setTiempoJuicio((t) => t - 1), 1000);
+      if (tiempoJuicio === 10) reproducirSonido('tick', 'play');
+    }
+    else if (pantalla === 'TRIBUNAL' && tiempoJuicio === 0 && !veredictoFinal) {
+      reproducirSonido('tick', 'stop');
+      if (!votoJuicio) emitirVotoJuicio('SALVADO');
+    }
+    else if (pantalla === 'TRIBUNAL' && (veredictoFinal || votoJuicio)) {
+      reproducirSonido('tick', 'stop');
+    }
+    return () => clearTimeout(timer);
+  }, [pantalla, tiempoRestante, opcionElegida, tiempoRevelacion, tiempoJuicio, cuestionamientos, jugadores, veredictoFinal, revelacionData]);
 
   const crearSala = () => {
-    if (!nombre.trim()) return alert('¡Ponete un nombre!');
-    setCargando(true);
-    socket.emit('crear_sala', { nombreUsuario: nombre, signo: signoElegido, token: miToken });
+    if (!nombre.trim()) return alert('¡Ponete un nombre, careta!');
+    reproducirSonido('click');
+    socket.emit('crear_sala', { nombreUsuario: nombre, avatar: avatarElegido });
   };
 
   const unirseSala = () => {
-    if (!nombre.trim()) return alert('¡Ponete un nombre!');
+    if (!nombre.trim()) return alert('¡Ponete un nombre, careta!');
     if (!codigoSala.trim()) return alert('Ingresá el código de la sala');
-    const codigo = codigoSala.trim().toUpperCase();
-    setCargando(true);
-    socket.emit('unirse_sala', { codigoSala: codigo, nombreUsuario: nombre, signo: signoElegido, token: miToken });
-    setMiSala(codigo);
-    localStorage.setItem('realOnes_sesion', JSON.stringify({ codigoSala: codigo, nombre, signo: signoElegido }));
+    reproducirSonido('click');
+    socket.emit('unirse_sala', { codigoSala: codigoSala.toUpperCase(), nombreUsuario: nombre, avatar: avatarElegido });
+    setMiSala(codigoSala.toUpperCase());
   };
 
-  const prepararJuego = (composicionElegida) => {
-    socket.emit('preparar_juego', { codigoSala: miSala, composicion: composicionElegida });
+  const prepararJuego = () => {
+    reproducirSonido('click');
+    socket.emit('preparar_juego', { codigoSala: miSala, idTest: testSeleccionado });
   };
 
   const iniciarJuego = () => {
+    reproducirSonido('click');
     socket.emit('iniciar_juego', { codigoSala: miSala });
   };
 
-  const siguienteRonda = () => {
-    if (avanzando) return;
-    setAvanzando(true);
-    socket.emit('siguiente_ronda', { codigoSala: miSala });
+  const enviarRespuesta = (idOpcion) => {
+    reproducirSonido('tick', 'stop');
+    reproducirSonido('click');
+    setOpcionElegida(idOpcion);
+    const prediccion = (prediccionJugador && prediccionOpcion) ? { jugadorObjetivoId: prediccionJugador, opcionAdivinadaId: prediccionOpcion } : null;
+    socket.emit('enviar_respuesta', { codigoSala: miSala, idOpcion, prediccion });
   };
 
-  const votarFC = (idVotado) => {
-    if (opcionFCElegida) return;
-    setOpcionFCElegida(idVotado);
-    socket.emit('votar_fc', { codigoSala: miSala, idVotado });
+  const hundirBotonMentira = (idJugadorMentiroso) => {
+    if (!acusacionUsada) {
+      reproducirSonido('alarma');
+      socket.emit('cuestionar_jugador', { codigoSala: miSala, idJugadorAcusado: idJugadorMentiroso });
+      setAcusacionUsada(true); 
+    }
   };
 
-  const tocarJugadorRanking = (idJugador) => {
-    if (ordenRanking.includes(idJugador)) return;
-    setOrdenRanking(prev => [...prev, idJugador]);
+  const emitirVotoJuicio = (voto) => {
+    reproducirSonido('tick', 'stop');
+    reproducirSonido('click');
+    setVotoJuicio(voto);
+    socket.emit('votar_juicio', { codigoSala: miSala, idAcusado: acusado.id, voto });
   };
 
-  const deshacerUltimoRanking = () => {
-    setOrdenRanking(prev => prev.slice(0, -1));
-  };
-
-  const confirmarRanking = () => {
-    socket.emit('votar_ranking', { codigoSala: miSala, orden: ordenRanking });
-  };
-
-  const votarQueHaria = (letra) => {
-    if (letraQueHariaElegida) return;
-    setLetraQueHariaElegida(letra);
-    socket.emit('votar_que_haria', { codigoSala: miSala, letra });
-  };
-
-  const descargarTarjeta = () => {
-    const elemento = document.getElementById('tarjeta-real-ones');
-    html2canvas(elemento, { backgroundColor: '#0F041C', scale: 2 }).then((canvas) => {
+  // 📸 FUNCIÓN MÁGICA PARA INSTAGRAM
+  const descargarProntuario = () => {
+    reproducirSonido('click');
+    const elemento = document.getElementById('prontuario-export');
+    html2canvas(elemento, { backgroundColor: '#1A1A2E', scale: 2 }).then((canvas) => {
       const link = document.createElement('a');
-      link.download = `RealOnes_${nombre}.png`;
+      link.download = `SinCareta_${nombre}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     });
   };
 
-  // ---------- Derivados ----------
-
-  const soyAnfitrion = jugadores.find(j => j.id === miId)?.esAnfitrion;
-  const otrosParaRanking = rondaActual?.tipo === 'RANKING'
-    ? (rondaActual.jugadores || []).filter(j => j.id !== miId)
-    : [];
-  const miResultadoFinal = resultadosFinales ? resultadosFinales.find(r => r.id === miId) : null;
-  const rankingGeneral = resultadosFinales
-    ? [...resultadosFinales].sort((a, b) => b.puntosDescaroTotal - a.puntosDescaroTotal)
-    : [];
-
-  // ---------- Estilos ----------
+  let miJugador = null;
+  let miPerfil = null;
+  if (pantalla === 'RESULTADOS' && testFinal) {
+    miJugador = jugadores.find(j => j.id === miId);
+    if (miJugador) {
+      miPerfil = testFinal.perfiles_resultado.find(p => miJugador.puntos >= p.rango_min && miJugador.puntos <= p.rango_max);
+    }
+    jugadores.sort((a, b) => b.puntos - a.puntos);
+  }
 
   const estilos = {
     contenedor: { background: 'radial-gradient(circle at 50% 0%, #2A0845 0%, #0F041C 100%)', color: '#FFFFFF', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, -apple-system, sans-serif', padding: '20px', boxSizing: 'border-box' },
-    tarjetaGlass: { background: 'rgba(255, 255, 255, 0.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '24px', padding: '30px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-    titulo: { fontSize: '3rem', fontWeight: '900', background: 'linear-gradient(90deg, #FFD700 0%, #FF007A 50%, #7A00FF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0', textAlign: 'center', letterSpacing: '2px', lineHeight: '1.1' },
-    subtitulo: { color: '#FFD700', marginTop: '4px', marginBottom: '24px', fontWeight: '700', fontSize: '0.95rem', letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' },
-    input: { padding: '16px', fontSize: '1.1rem', background: 'rgba(0, 0, 0, 0.2)', color: '#FFF', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '16px', marginBottom: '15px', width: '100%', textAlign: 'center', outline: 'none', boxSizing: 'border-box' },
-    botonPrincipal: { padding: '16px 30px', fontSize: '1.15rem', fontWeight: '800', background: 'linear-gradient(45deg, #FFD700, #FF007A)', color: '#000', border: 'none', borderRadius: '30px', boxShadow: '0 4px 15px rgba(255, 0, 122, 0.4)', cursor: 'pointer', width: '100%', marginBottom: '12px' },
-    botonSecundario: { padding: '16px 30px', fontSize: '1.15rem', fontWeight: '800', background: 'linear-gradient(45deg, #7A00FF, #00B8FF)', color: '#FFF', border: 'none', borderRadius: '30px', cursor: 'pointer', width: '100%', marginBottom: '12px' },
-    botonOpcion: (seleccionada, bloqueado) => ({ padding: '16px', fontSize: '1.05rem', fontWeight: '600', background: seleccionada ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 255, 255, 0.05)', color: seleccionada ? '#FFD700' : '#FFF', border: seleccionada ? '2px solid #FFD700' : '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', cursor: bloqueado ? 'not-allowed' : 'pointer', width: '100%', marginBottom: '10px', textAlign: 'left', opacity: (bloqueado && !seleccionada) ? 0.4 : 1 }),
-    badgeSigno: (activo) => ({ fontSize: '1.8rem', padding: '10px', borderRadius: '12px', background: activo ? '#FFD700' : 'rgba(255,255,255,0.05)', border: activo ? '2px solid #FFF' : '1px solid transparent', cursor: 'pointer' }),
-    ronda: { background: 'rgba(255, 255, 255, 0.1)', color: '#FFD700', padding: '6px 14px', fontWeight: '700', borderRadius: '20px', fontSize: '0.85rem', letterSpacing: '1px' },
-    tarjetaReveal: { background: 'rgba(255, 215, 0, 0.08)', border: '2px solid rgba(255, 215, 0, 0.4)', borderRadius: '24px', padding: '35px 25px', textAlign: 'center', width: '100%', maxWidth: '420px', boxShadow: '0 0 40px rgba(255, 215, 0, 0.2)' }
+    tarjetaGlass: { background: 'rgba(255, 255, 255, 0.03)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '24px', padding: '30px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)', width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10 },
+    titulo: { fontSize: '4.2rem', fontWeight: '900', background: 'linear-gradient(90deg, #FF007A 0%, #7A00FF 50%, #00FFA3 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0', textAlign: 'center', zIndex: 10, letterSpacing: '4px', padding: '10px 0', lineHeight: '1.2', filter: 'drop-shadow(0px 4px 15px rgba(255, 0, 122, 0.6))' },
+    subtitulo: { color: '#00FFA3', marginBottom: '30px', zIndex: 10, fontWeight: '700', fontSize: '0.9rem', letterSpacing: '3px', textTransform: 'uppercase', textShadow: '0 0 10px rgba(0, 255, 163, 0.5)', textAlign: 'center' },
+    input: { padding: '16px', fontSize: '1.1rem', background: 'rgba(0, 0, 0, 0.2)', color: '#FFF', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '16px', marginBottom: '15px', width: '100%', textAlign: 'center', outline: 'none', transition: 'border 0.3s' },
+    botonPrincipal: { padding: '16px 30px', fontSize: '1.2rem', fontWeight: '800', background: 'linear-gradient(45deg, #FF007A, #7A00FF)', color: '#FFF', border: 'none', borderRadius: '30px', boxShadow: '0 4px 15px rgba(255, 0, 122, 0.4)', cursor: 'pointer', width: '100%', marginBottom: '15px', transition: 'transform 0.2s, boxShadow 0.2s' },
+    botonSecundario: { padding: '16px 30px', fontSize: '1.2rem', fontWeight: '800', background: 'linear-gradient(45deg, #00FFA3, #00B8FF)', color: '#000', border: 'none', borderRadius: '30px', boxShadow: '0 4px 15px rgba(0, 255, 163, 0.4)', cursor: 'pointer', width: '100%', marginBottom: '15px' },
+    botonInstagram: { padding: '12px 20px', fontSize: '1rem', fontWeight: '800', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', color: '#FFF', border: 'none', borderRadius: '30px', cursor: 'pointer', width: '100%', maxWidth: '300px', marginBottom: '15px', boxShadow: '0 4px 15px rgba(221, 42, 123, 0.4)' },
+    botonMentira: (usado) => ({ padding: '12px', fontSize: '1rem', fontWeight: '800', background: usado ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(45deg, #FF007A, #FF4B2B)', color: usado ? '#888' : '#FFF', border: 'none', borderRadius: '12px', boxShadow: usado ? 'none' : '0 4px 15px rgba(255, 0, 122, 0.3)', cursor: usado ? 'not-allowed' : 'pointer', marginTop: '15px', width: '100%' }),
+    botonOpcion: (seleccionada, bloqueado) => ({ padding: '16px', fontSize: '1.1rem', fontWeight: '600', background: seleccionada ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 255, 255, 0.05)', color: seleccionada ? '#00FFA3' : '#FFF', border: seleccionada ? '2px solid #00FFA3' : '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', boxShadow: seleccionada ? '0 0 15px rgba(0, 255, 163, 0.2)' : 'none', cursor: bloqueado ? 'not-allowed' : 'pointer', width: '100%', marginBottom: '12px', textAlign: 'left', opacity: (bloqueado && !seleccionada) ? 0.4 : 1 }),
+    reloj: (tiempo) => ({ fontSize: '3rem', fontWeight: '900', color: tiempo <= 10 ? '#FF007A' : '#00FFA3', textShadow: tiempo <= 10 ? '0 0 20px rgba(255,0,122,0.6)' : '0 0 20px rgba(0,255,163,0.4)', marginBottom: '20px' }),
+    tarjetaRevelacion: { background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '16px', marginBottom: '15px', width: '100%', display: 'flex', flexDirection: 'column' },
+    badgeTibia: { background: '#FFD700', color: '#000', padding: '5px 12px', fontWeight: '800', borderRadius: '20px', display: 'inline-block', marginTop: '12px', textAlign: 'center', fontSize: '0.85rem' },
+    prontuario: { background: 'linear-gradient(135deg, #1A1A2E, #16213E)', color: '#FFF', padding: '30px', borderRadius: '20px', border: '1px solid rgba(0, 255, 163, 0.3)', position: 'relative', overflow: 'hidden', width: '100%', maxWidth: '380px', boxShadow: '0 0 30px rgba(0, 255, 163, 0.15)', marginBottom: '20px', textAlign: 'left', zIndex: 10 },
+    sello: { position: 'absolute', top: '25px', right: '-15px', color: '#FF007A', border: '3px solid #FF007A', padding: '8px 15px', fontWeight: '900', fontSize: '1.2rem', transform: 'rotate(-20deg)', letterSpacing: '2px', textShadow: '0 0 10px rgba(255,0,122,0.5)', boxShadow: '0 0 10px rgba(255,0,122,0.2) inset' }
   };
 
   return (
     <div style={estilos.contenedor}>
       {pantalla === 'RESULTADOS' && (
-        <Confetti width={window.innerWidth} height={window.innerHeight} colors={['#FFD700', '#FF007A', '#7A00FF', '#00B8FF']} recycle={false} numberOfPieces={500} />
+        <Confetti width={windowSize.width} height={windowSize.height} colors={['#00FFA3', '#FF007A', '#7A00FF', '#00B8FF', '#FFD700']} recycle={false} numberOfPieces={600} />
       )}
 
-      {pantalla !== 'RONDA' && pantalla !== 'INTERMEDIO' && pantalla !== 'RESULTADOS' && (
+      {pantalla !== 'PREGUNTA' && pantalla !== 'REVELACION' && pantalla !== 'TRIBUNAL' && pantalla !== 'RESULTADOS' && (
         <>
-          <h1 style={estilos.titulo}>REAL ONES</h1>
-          <p style={estilos.subtitulo}>Amigos Reales</p>
+          <h1 style={estilos.titulo}>SIN CARETA</h1>
+          <p style={estilos.subtitulo}>El simulador de destrucción de amistades</p>
         </>
       )}
 
       {pantalla === 'INICIO' && (
         <div style={estilos.tarjetaGlass}>
-          <p style={{ color: '#FFF', fontWeight: 'bold', marginBottom: '10px' }}>Elegí tu signo:</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '20px', width: '100%' }}>
-            {SIGNOS.map(s => (
-              <button key={s.id} style={estilos.badgeSigno(signoElegido === s.id)} onClick={() => setSignoElegido(s.id)} title={s.nombre}>
-                {s.emoji}
+          <p style={{color: '#FFF', fontWeight: 'bold', marginBottom: '10px'}}>Elegí tu Espíritu Animal:</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '20px', maxWidth: '300px' }}>
+            {ANIMALES.map(a => (
+              <button key={a} onClick={() => {reproducirSonido('click'); setAvatarElegido(a);}} style={{ background: avatarElegido === a ? '#00FFA3' : 'rgba(255,255,255,0.05)', border: avatarElegido === a ? '2px solid #FFF' : '1px solid transparent', borderRadius: '8px', fontSize: '1.5rem', padding: '8px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                {a}
               </button>
             ))}
           </div>
 
-          <input style={estilos.input} placeholder="Tu nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={12} />
-          <button style={{ ...estilos.botonPrincipal, opacity: cargando ? 0.7 : 1 }} onClick={crearSala} disabled={cargando}>
-            {cargando ? 'CONECTANDO...' : 'CREAR SALA'}
-          </button>
-
+          <input style={estilos.input} placeholder="Tu apodo" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={12} />
+          <button style={estilos.botonPrincipal} onClick={crearSala}>CREAR SALA</button>
+          
           <div style={{ margin: '15px 0', width: '100%', borderTop: '1px solid rgba(255,255,255,0.1)' }}></div>
-
-          <input style={estilos.input} placeholder="CÓDIGO DE SALA" value={codigoSala} onChange={(e) => setCodigoSala(e.target.value)} maxLength={8} />
-          <button style={{ ...estilos.botonSecundario, opacity: cargando ? 0.7 : 1 }} onClick={unirseSala} disabled={cargando}>
-            {cargando ? 'CONECTANDO...' : 'UNIRSE'}
-          </button>
+          
+          <input style={estilos.input} placeholder="CÓDIGO (Ej: RATA-123)" value={codigoSala} onChange={(e) => setCodigoSala(e.target.value)} maxLength={8} />
+          <button style={estilos.botonSecundario} onClick={unirseSala}>UNIRSE</button>
         </div>
       )}
 
       {pantalla === 'LOBBY' && (
         <div style={estilos.tarjetaGlass}>
-          <h2 style={{ color: '#FFD700', marginBottom: '15px', letterSpacing: '2px' }}>SALA: {miSala}</h2>
-
-          <div style={{ background: '#FFF', padding: '10px', borderRadius: '12px', marginBottom: '20px' }}>
-            <QRCodeCanvas value={`https://real-ones.vercel.app/?sala=${miSala}`} size={130} level={"H"} />
+          <h2 style={{ color: '#00FFA3', marginBottom: '5px', letterSpacing: '2px' }}>SALA: {miSala}</h2>
+{/* CÓDIGO QR PARA INVITAR */}
+          <div style={{ background: '#FFF', padding: '10px', borderRadius: '12px', display: 'inline-block', marginBottom: '10px', marginTop: '10px' }}>
+            <QRCodeCanvas 
+              value={`https://vercel.com/nolovolverehacer-7143s-projects/frontend-sin-careta/Hi24Myo2QV5FZKYYPYzNXCr69Bro/?sala=${miSala}`} 
+              size={140} 
+              level={"H"}
+            />
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginBottom: '20px' }}>
+          <p style={{ color: '#00FFA3', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '25px', textTransform: 'uppercase' }}>
+            ¡Escaneá para unirte directo!
+          </p>
+          <p style={{ color: '#A09FB1', marginBottom: '25px' }}>Esperando a los mentirosos...</p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginBottom: '30px' }}>
             {jugadores.map((j, i) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,0.4)', borderLeft: j.id === miId ? '4px solid #FFD700' : '4px solid transparent', padding: '12px 20px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', opacity: j.conectado === false ? 0.5 : 1 }}>
-                <span>{emojiDeSigno(j.avatarSigno)} {j.nombre} {j.conectado === false ? '🔌' : ''}</span>
-                {j.esAnfitrion && <span style={{ color: '#FFD700', fontSize: '0.8rem' }}>ANFITRIÓN</span>}
+              <div key={i} style={{background: 'rgba(0,0,0,0.3)', borderLeft: j.id === miId ? '4px solid #00FFA3' : '4px solid transparent', padding: '12px 20px', borderRadius: '8px', fontWeight: '600', display: 'flex', justifyContent: 'space-between'}}>
+                <span>{j.avatar} {j.nombre} {j.pinocho ? '🤥' : ''} {j.esAnfitrion ? '👑' : ''}</span>
+                <span style={{color: '#00FFA3'}}>{j.puntos} pts</span>
               </div>
             ))}
           </div>
 
-          {soyAnfitrion ? (
+          {jugadores.find(j => j.id === miId)?.esAnfitrion ? (
             <div style={{ width: '100%' }}>
-              <p style={{ color: '#A09FB1', fontSize: '0.85rem', marginBottom: '10px' }}>Composición del grupo:</p>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
-                {[{ id: 'mixto', label: 'Mixto' }, { id: 'hombres', label: 'Hombres' }, { id: 'mujeres', label: 'Mujeres' }].map(c => (
-                  <button key={c.id} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #FFD700', background: composicion === c.id ? '#FFD700' : 'transparent', color: composicion === c.id ? '#000' : '#FFF', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setComposicion(c.id)}>
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <button style={estilos.botonPrincipal} onClick={() => prepararJuego(composicion)}>EMPEZAR</button>
-              {jugadores.length < 3 && <p style={{ color: '#FF007A', fontSize: '0.8rem' }}>Necesitás al menos 3 jugadores</p>}
+              <select style={estilos.input} value={testSeleccionado} onChange={(e) => setTestSeleccionado(e.target.value)}>
+                <option value="TEST_A">💀 El Dictador (Control)</option>
+                <option value="TEST_B">🧘‍♂️ Falso Zen (Positividad)</option>
+                <option value="TEST_C">🔪 Buda con Puñal (Agresión)</option>
+                <option value="TEST_D">🍻 Reglas de Barrio (Códigos)</option>
+              </select>
+              <button style={estilos.botonPrincipal} onClick={prepararJuego}>SIGUIENTE</button>
             </div>
           ) : (
-            <p style={{ color: '#FFD700', fontWeight: 'bold' }}>Esperando que el anfitrión arranque...</p>
+            <p style={{color: '#00FFA3', fontWeight: 'bold'}}>El anfitrión está preparando el juego...</p>
           )}
         </div>
       )}
 
+      {/* 🚀 PANTALLA DE REGLAS */}
       {pantalla === 'REGLAS' && (
-        <div style={{ ...estilos.tarjetaGlass, maxWidth: '480px' }}>
-          <h2 style={{ color: '#FFD700', marginBottom: '15px', fontWeight: '900', textAlign: 'center' }}>🤫 CÓMO SE JUEGA</h2>
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '20px', borderRadius: '12px', color: '#E0E0E0', fontSize: '1rem', lineHeight: '1.6', marginBottom: '20px', textAlign: 'left' }}>
-            <p style={{ marginTop: 0 }}><strong>12 rondas.</strong> Vas a votar sobre gente de esta sala de tres formas distintas.</p>
-            <p><strong>Nunca se revela quién votó qué.</strong> Solo se muestra el resultado — jamás quién lo eligió.</p>
-            <p>Al final, cada uno recibe un perfil armado con cómo lo vieron los demás, y hay un ranking general de la partida.</p>
+        <div style={{...estilos.tarjetaGlass, maxWidth: '500px'}}>
+          <h2 style={{ color: '#FF007A', marginBottom: '15px', fontWeight: '900', fontSize: '1.8rem', textAlign: 'center' }}>⚠️ ADVERTENCIA LEGAL ⚠️</h2>
+          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '20px', borderRadius: '12px', color: '#E0E0E0', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '25px', textAlign: 'left' }}>
+            <p style={{marginTop: 0}}>Al tocar Aceptar, renunciás a tu derecho a ofenderte.</p>
+            <ul style={{ paddingLeft: '20px', marginBottom: 0 }}>
+              <li style={{marginBottom: '10px'}}><strong>Acá no se llora:</strong> Si te enojás, perdés. Es un juego.</li>
+              <li style={{marginBottom: '10px'}}><strong>La Bala de Plata:</strong> Tenés UNA (1) sola oportunidad por ronda para gritar <i>¡MENTIRA!</i>. Usala con sabiduría.</li>
+              <li style={{marginBottom: '10px'}}><strong>El Voto Traidor:</strong> Mientras esperás, podés apostar quién va a mentir. Si acertás, le restás puntos.</li>
+              <li><strong>Lo que pasa en Sin Careta, queda en Sin Careta.</strong></li>
+            </ul>
           </div>
-          {soyAnfitrion ? (
-            <button style={estilos.botonPrincipal} onClick={iniciarJuego}>EMPEZAR A JUGAR</button>
+
+          {jugadores.find(j => j.id === miId)?.esAnfitrion ? (
+            <button style={estilos.botonPrincipal} onClick={iniciarJuego}>ACEPTO LOS RIESGOS</button>
           ) : (
-            <p style={{ color: '#FFD700', fontWeight: 'bold' }}>Esperando al anfitrión...</p>
+            <p style={{color: '#00FFA3', fontWeight: 'bold'}}>Esperando que el anfitrión firme el contrato...</p>
           )}
         </div>
       )}
 
-      {pantalla === 'RONDA' && rondaActual && (
-        <div style={{ width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ marginBottom: '15px' }}>
-            <span style={estilos.ronda}>Ronda {rondaActual.numero} de {rondaActual.total}</span>
+      {pantalla === 'PREGUNTA' && preguntaActual && (
+        <div style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={estilos.reloj(tiempoRestante)}>{tiempoRestante}</div>
+          
+          <div style={{ alignSelf: 'flex-start', marginBottom: '20px' }}>
+            <span style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#00FFA3', padding: '6px 14px', fontWeight: '700', borderRadius: '20px', fontSize: '0.9rem', letterSpacing: '1px' }}>
+              Ronda {preguntaActual.numero} de {preguntaActual.total}
+            </span>
           </div>
+          
+          <h2 style={{ fontSize: '1.5rem', lineHeight: '1.4', marginBottom: '30px', fontWeight: '600' }}>{preguntaActual.texto}</h2>
 
-          {rondaActual.tipo === 'FC' && (
-            <>
-              <h2 style={{ fontSize: '1.4rem', lineHeight: '1.4', marginBottom: '25px', textAlign: 'center' }}>{rondaActual.texto}</h2>
-              <div style={{ width: '100%' }}>
-                {rondaActual.opciones.map(o => (
-                  <button key={o.id} style={estilos.botonOpcion(opcionFCElegida === o.id, opcionFCElegida !== null)} onClick={() => votarFC(o.id)} disabled={opcionFCElegida !== null}>
-                    {emojiDeSigno(o.avatar)} {o.nombre}
-                  </button>
-                ))}
-              </div>
-              {opcionFCElegida && <p style={{ color: '#A09FB1', marginTop: '10px' }}>Esperando al resto...</p>}
-            </>
+          {!opcionElegida && jugadores.length > 1 && (
+            <div style={{...estilos.tarjetaGlass, background: 'rgba(0, 255, 163, 0.05)', border: '1px solid rgba(0, 255, 163, 0.2)', padding: '20px', marginBottom: '25px'}}>
+              <span style={{color: '#00FFA3', fontWeight: '700', fontSize: '0.9rem', marginBottom: '15px'}}>🕵️ VOTO TRAIDOR (Optativo: Acertá y restá 1 pt)</span>
+              <select style={estilos.input} value={prediccionJugador} onChange={(e) => setPrediccionJugador(e.target.value)} onClick={(e)=>e.stopPropagation()} onKeyDown={(e)=>{e.stopPropagation(); if(e.key==='Enter')e.preventDefault();}}>
+                <option value="">¿Quién va a mentir?</option>
+                {jugadores.filter(j => j.id !== miId).map(j => (<option key={j.id} value={j.id}>{j.avatar} {j.nombre}</option>))}
+              </select>
+              {prediccionJugador && (
+                <select style={{...estilos.input, marginBottom: 0}} value={prediccionOpcion} onChange={(e) => setPrediccionOpcion(e.target.value)} onClick={(e)=>e.stopPropagation()} onKeyDown={(e)=>{e.stopPropagation(); if(e.key==='Enter')e.preventDefault();}}>
+                  <option value="">¿Qué va a responder?</option>
+                  {preguntaActual.opciones.map(o => (<option key={o.id_opcion} value={o.id_opcion}>Opción {o.id_opcion}</option>))}
+                </select>
+              )}
+            </div>
           )}
 
-          {rondaActual.tipo === 'RANKING' && (
-            <>
-              <h2 style={{ fontSize: '1.3rem', marginBottom: '5px', textAlign: 'center', color: '#FFD700' }}>{rondaActual.titulo}</h2>
-              <p style={{ fontSize: '0.95rem', color: '#E0E0E0', textAlign: 'center', marginBottom: '10px' }}>{rondaActual.instruccion}</p>
-              <p style={{ fontSize: '0.8rem', color: '#A09FB1', marginBottom: '20px', textAlign: 'center' }}>
-                Tocá en orden: primero {rondaActual.etiqueta_1?.toLowerCase()}, último {rondaActual.etiqueta_ultima?.toLowerCase()}
-              </p>
-              <div style={{ width: '100%' }}>
-                {otrosParaRanking.map(j => {
-                  const posicion = ordenRanking.indexOf(j.id);
-                  return (
-                    <button key={j.id} style={estilos.botonOpcion(posicion !== -1, ordenRanking.length === otrosParaRanking.length)} onClick={() => tocarJugadorRanking(j.id)} disabled={posicion !== -1 || ordenRanking.length === otrosParaRanking.length}>
-                      {posicion !== -1 ? `${posicion + 1}° · ` : ''}{emojiDeSigno(j.avatar)} {j.nombre}
-                    </button>
-                  );
-                })}
-              </div>
-              {ordenRanking.length > 0 && ordenRanking.length < otrosParaRanking.length && (
-                <button style={{ ...estilos.botonSecundario, marginTop: '10px' }} onClick={deshacerUltimoRanking}>Deshacer último</button>
-              )}
-              {ordenRanking.length === otrosParaRanking.length && otrosParaRanking.length > 0 && (
-                <button style={{ ...estilos.botonPrincipal, marginTop: '10px' }} onClick={confirmarRanking}>CONFIRMAR ORDEN</button>
-              )}
-            </>
-          )}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+            {preguntaActual.opciones.map(opt => (
+              <button key={opt.id_opcion} style={estilos.botonOpcion(opcionElegida === opt.id_opcion, opcionElegida !== null)} onClick={() => !opcionElegida && enviarRespuesta(opt.id_opcion)} disabled={opcionElegida !== null}>
+                {opt.texto}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-          {rondaActual.tipo === 'QUE_HARIA' && (
-            <>
-              <h2 style={{ fontSize: '1.4rem', lineHeight: '1.4', marginBottom: '25px', textAlign: 'center' }}>{rondaActual.texto}</h2>
-              <div style={{ width: '100%' }}>
-                {rondaActual.opciones.map(o => (
-                  <button key={o.letra} style={estilos.botonOpcion(letraQueHariaElegida === o.letra, letraQueHariaElegida !== null)} onClick={() => votarQueHaria(o.letra)} disabled={letraQueHariaElegida !== null}>
-                    <strong>{o.letra})</strong> {o.texto}
+      {pantalla === 'REVELACION' && (
+        <div style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <h2 style={{ color: '#FF007A', fontSize: '2.5rem', marginBottom: '5px', letterSpacing: '2px', fontWeight: '900', textShadow: '0 0 15px rgba(255,0,122,0.5)' }}>ESCRACHE</h2>
+          <div style={estilos.reloj(tiempoRevelacion)}>{tiempoRevelacion}</div>
+          
+          <div style={{ width: '100%' }}>
+            {revelacionData.map((rev, index) => (
+              <div key={index} style={estilos.tarjetaRevelacion}>
+                <span style={{ fontSize: '1.2rem', fontWeight: '800', color: '#00FFA3' }}>{rev.avatar} {rev.nombreJugador}</span>
+                <span style={{ marginTop: '10px', fontSize: '1.1rem', color: '#E0E0E0' }}>Eligió: <i>"{rev.opcionElegida.texto}"</i></span>
+                
+                {rev.esTibia && <span style={estilos.badgeTibia}>🐔 TRAMPA TIBIA DETECTADA</span>}
+                
+                {rev.idJugador !== miId && (
+                  <button style={estilos.botonMentira(acusacionUsada)} onClick={() => !acusacionUsada && hundirBotonMentira(rev.idJugador)} disabled={acusacionUsada}>
+                    {acusacionUsada ? '💥 BALA DE PLATA GASTADA' : `🚨 ¡MENTIRA! (${cuestionamientos[rev.idJugador]?.length || 0} Votos)`}
                   </button>
-                ))}
+                )}
               </div>
-              {letraQueHariaElegida && <p style={{ color: '#A09FB1', marginTop: '10px' }}>Esperando al resto...</p>}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pantalla === 'TRIBUNAL' && (
+        <div style={{ width: '100%', maxWidth: '500px', textAlign: 'center' }}>
+          <h1 style={{ color: '#FF007A', fontSize: '3.5rem', fontWeight: '900', textShadow: '0 0 20px rgba(255,0,122,0.6)', letterSpacing: '2px' }}>EL TRIBUNAL</h1>
+          <h2 style={{ color: '#FFF', marginBottom: '10px', fontWeight: '500' }}>Acusado: <span style={{color: '#00FFA3', fontSize: '2rem', fontWeight: '800'}}>{acusado?.avatar} {acusado?.nombre}</span></h2>
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px', marginBottom: '25px', fontStyle: 'italic' }}>"{respuestaAcusado}"</div>
+          
+          {!veredictoFinal ? (
+            <>
+              <div style={estilos.reloj(tiempoJuicio)}>{tiempoJuicio}</div>
+              {miId === acusado?.id ? (
+                <div style={{ background: 'linear-gradient(45deg, #FF007A, #FF4B2B)', padding: '25px', borderRadius: '16px', boxShadow: '0 0 20px rgba(255,0,122,0.4)' }}>
+                  <h3 style={{ color: '#FFF', fontWeight: '900', fontSize: '1.5rem', marginBottom: '10px' }}>¡SOS EL ACUSADO!</h3>
+                  <p style={{fontWeight: '500', fontSize: '1.1rem'}}>Tenés 30 segundos para defenderte a viva voz. ¡Convencelos de tu inocencia!</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+                  <button style={{ ...estilos.botonSecundario, padding: '15px', flex: 1 }} onClick={() => emitirVotoJuicio('SALVADO')} disabled={votoJuicio !== null}>
+                    {votoJuicio === 'SALVADO' ? '✅ VOTASTE INOCENTE' : '👼 INOCENTE'}
+                  </button>
+                  <button style={{ ...estilos.botonPrincipal, padding: '15px', flex: 1, marginBottom: 0 }} onClick={() => emitirVotoJuicio('MINTIO')} disabled={votoJuicio !== null}>
+                    {votoJuicio === 'MINTIO' ? '✅ VOTASTE CULPABLE' : '🤥 CULPABLE'}
+                  </button>
+                </div>
+              )}
             </>
+          ) : (
+            <div style={{ background: veredictoFinal === 'MINTIO' ? 'linear-gradient(45deg, #FF007A, #FF4B2B)' : 'linear-gradient(45deg, #00FFA3, #00B8FF)', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              <h2 style={{ color: veredictoFinal === 'MINTIO' ? '#FFF' : '#000', fontSize: '3rem', fontWeight: '900' }}>
+                {veredictoFinal === 'MINTIO' ? '¡CULPABLE! (+10 pts)' : '¡SALVADO!'}
+              </h2>
+            </div>
           )}
         </div>
       )}
 
-      {pantalla === 'INTERMEDIO' && resultadoRonda && (
-        <div style={{ width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {resultadoRonda.tipo === 'FC' && (
-            <div style={estilos.tarjetaReveal}>
-              <p style={{ color: '#A09FB1', fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.8rem', marginBottom: '15px' }}>El grupo eligió a...</p>
-              <div style={{ fontSize: '4rem', marginBottom: '10px' }}>{resultadoRonda.ganador ? emojiDeSigno(resultadoRonda.ganador.avatar) : '🤷'}</div>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#FFD700' }}>{resultadoRonda.ganador ? resultadoRonda.ganador.nombre : '—'}</h1>
-              <p style={{ color: '#FF007A', fontWeight: '700', marginTop: '10px' }}>{resultadoRonda.votos} {resultadoRonda.votos === 1 ? 'voto' : 'votos'}</p>
-            </div>
-          )}
-
-          {resultadoRonda.tipo === 'RANKING' && (
-            <div style={{ ...estilos.tarjetaGlass }}>
-              <h3 style={{ color: '#FFD700', marginBottom: '15px' }}>Resultado de la ronda</h3>
-              {resultadoRonda.resultado.map((r, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '8px 0', borderBottom: i < resultadoRonda.resultado.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                  <span>{i + 1}° {emojiDeSigno(r.avatar)} {r.nombre}</span>
-                  <span style={{ color: '#FFD700' }}>{r.puntos} pts</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {resultadoRonda.tipo === 'QUE_HARIA' && (
-            resultadoRonda.todosInocentes ? (
-              <div style={estilos.tarjetaReveal}>
-                <p style={{ fontSize: '1.3rem', fontWeight: '700' }}>{resultadoRonda.frase}</p>
+      {pantalla === 'INTERMEDIO' && (
+        <div style={estilos.tarjetaGlass}>
+          <h2 style={{ color: '#00FFA3', marginBottom: '25px', fontWeight: '800' }}>Fin de la Ronda</h2>
+          <div style={{ width: '100%', marginBottom: '30px' }}>
+            <h3 style={{ color: '#A09FB1', fontSize: '0.9rem', textTransform: 'uppercase', marginBottom: '15px' }}>Tabla de Toxicidad:</h3>
+            {jugadores.map((j, i) => (
+              <div key={i} style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{fontWeight: '600'}}>{j.avatar} {j.nombre} {j.pinocho ? '🤥' : ''}</span>
+                <span style={{color: '#00FFA3', fontWeight: '800'}}>{j.puntos} pts</span>
               </div>
-            ) : (
-              <div style={estilos.tarjetaReveal}>
-                <p style={{ color: '#A09FB1', fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', fontSize: '0.8rem', marginBottom: '15px' }}>El veredicto fue...</p>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#FF007A', marginBottom: '10px' }}>
-                  {resultadoRonda.objetivos.map(o => o.nombre).join(' · ')}
-                </h1>
-                <p style={{ color: '#FFD700', fontStyle: 'italic' }}>"{resultadoRonda.textoOpcion}"</p>
-              </div>
-            )
-          )}
-
-          {soyAnfitrion ? (
-            <button style={{ ...estilos.botonPrincipal, marginTop: '20px', opacity: avanzando ? 0.6 : 1 }} onClick={siguienteRonda} disabled={avanzando}>
-              SIGUIENTE
+            ))}
+          </div>
+          {jugadores.find(j => j.id === miId)?.esAnfitrion ? (
+            <button style={estilos.botonPrincipal} onClick={() => { reproducirSonido('click'); socket.emit('siguiente_pregunta', { codigoSala: miSala }); }}>
+              SIGUIENTE PREGUNTA
             </button>
           ) : (
-            <p style={{ color: '#A09FB1', marginTop: '20px' }}>Esperando que el anfitrión avance...</p>
+            <p style={{ color: '#A09FB1' }}>Esperando que el anfitrión avance...</p>
           )}
         </div>
       )}
 
-      {pantalla === 'RESULTADOS' && miResultadoFinal && (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' }}>
-          <div id="tarjeta-real-ones" style={{ background: 'linear-gradient(135deg, #2A0845 0%, #0F041C 100%)', border: '2px solid rgba(255,215,0,0.5)', borderRadius: '24px', padding: '35px 25px', width: '100%', maxWidth: '380px', textAlign: 'center', marginBottom: '20px' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>{miResultadoFinal.signo?.emoji}</div>
-            <p style={{ color: '#A09FB1', fontStyle: 'italic', marginBottom: '20px' }}>{miResultadoFinal.signo?.apertura}</p>
-
-            <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#FFD700', marginBottom: '10px' }}>{miResultadoFinal.rol.titulo}</h1>
-            <p style={{ color: '#E0E0E0', marginBottom: '20px' }}>{miResultadoFinal.rol.descripcion}</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '15px' }}>
-              <p style={{ fontSize: '0.9rem' }}><strong style={{ color: '#FF007A' }}>{miResultadoFinal.alineacion.titulo}</strong></p>
-              <p style={{ fontSize: '0.9rem' }}><strong style={{ color: '#00B8FF' }}>{miResultadoFinal.mecanica.titulo}</strong></p>
-              <p style={{ fontSize: '0.85rem', color: '#A09FB1' }}>{miResultadoFinal.puntosDescaroTotal} pts de Descaro</p>
+     {pantalla === 'RESULTADOS' && miPerfil && (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10, paddingBottom: '40px' }}>
+          
+          {/* 🚀 TARJETA ESTÉTICA PARA EXPORTAR A INSTAGRAM */}
+          <div id="prontuario-export" className="prontuario-instagram">
+            <div className="sello-clasificacion">{miPerfil.sello}</div>
+            
+            <p style={{ fontSize: '1rem', textTransform: 'uppercase', color: '#00FFA3', fontWeight: '800', letterSpacing: '2px', marginBottom: '15px' }}>
+              ⚠️ EXPEDIENTE TÓXICO ⚠️
+            </p>
+            
+            <div style={{ background: 'rgba(0,0,0,0.4)', padding: '20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p style={{ fontSize: '1.1rem', fontWeight: '600', color: '#A09FB1', margin: '0 0 10px 0' }}>
+                Acusado: <span style={{ color: '#FFF', fontSize: '1.4rem', fontWeight: '900', display: 'block', marginTop: '5px' }}>{miJugador.avatar} {miJugador.nombre}</span>
+              </p>
+              <p style={{ fontSize: '1.1rem', fontWeight: '600', color: '#A09FB1', margin: 0 }}>
+                Nivel de Maldad: <span style={{ color: '#FF007A', fontWeight: '900', fontSize: '1.3rem' }}>{miJugador.puntos} pts</span>
+              </p>
             </div>
+            
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', lineHeight: '1.2', marginBottom: '15px', color: '#FFF', textShadow: '0 0 10px rgba(255,255,255,0.2)' }}>
+              "{miPerfil.titulo}"
+            </h2>
+            <p style={{ fontSize: '1.05rem', lineHeight: '1.6', color: '#E0E0E0', fontWeight: '500' }}>
+              {miPerfil.descripcion}
+            </p>
 
-            <p style={{ marginTop: '20px', fontSize: '0.75rem', color: '#7A00FF', fontWeight: '900', letterSpacing: '2px' }}>REAL ONES</p>
+            {/* MARCA DE AGUA PUBLICITARIA */}
+            <div className="marca-agua-ig">
+              <h4>SIN CARETA</h4>
+              <span className="link-juego">https://frontend-sin-careta.vercel.app/</span>
+            </div>
           </div>
 
-          <button style={{ ...estilos.botonPrincipal, maxWidth: '380px' }} onClick={descargarTarjeta}>📸 GUARDAR MI TARJETA</button>
+          <button style={{...estilos.botonInstagram, padding: '16px 20px', fontSize: '1.1rem'}} onClick={descargarProntuario}>
+            📸 COMPARTIR EN INSTAGRAM
+          </button>
+          
+          {/* ☕ BOTÓN DE CAFECITO SUPER VISIBLE */}
+          <button 
+            style={{ ...estilos.botonSecundario, marginTop: '10px', maxWidth: '300px', background: 'linear-gradient(45deg, #FFD700, #FFA500)', color: '#000', boxShadow: '0 5px 20px rgba(255, 215, 0, 0.4)' }} 
+            onClick={() => { reproducirSonido('click'); window.open('https://cafecito.app/sin_careta', '_blank'); }}
+          >
+            🍻 ¿TE REÍSTE? PAGÁ UNA BIRRA
+          </button>
 
-          <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', margin: '25px 0', maxWidth: '380px' }}></div>
+          <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)', margin: '30px 0' }}></div>
 
-          <h3 style={{ color: '#FFD700', marginBottom: '15px', letterSpacing: '1px' }}>🏆 RANKING GENERAL DE DESCARO</h3>
-          <div style={{ width: '100%', maxWidth: '380px', marginBottom: '30px' }}>
-            {rankingGeneral.map((r, i) => (
-              <div key={r.id} style={{ background: i === 0 ? 'linear-gradient(45deg, #FF007A, #7A00FF)' : 'rgba(255,255,255,0.05)', padding: '12px 18px', borderRadius: '12px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>{i === 0 ? '👑' : `${i + 1}.`} {emojiDeSigno(r.avatarSigno)} {r.nombre}</span>
-                <span>{r.puntosDescaroTotal} pts</span>
+          <h3 style={{ color: '#00FFA3', marginBottom: '20px', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}>🏆 Ranking Final</h3>
+          
+          <div style={{ width: '100%', maxWidth: '380px', marginBottom: '40px' }}>
+            {jugadores.map((j, i) => (
+              <div key={i} style={{ background: i === 0 ? 'linear-gradient(45deg, #FF007A, #7A00FF)' : 'rgba(255,255,255,0.05)', color: '#FFF', padding: '15px 20px', borderRadius: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', boxShadow: i === 0 ? '0 5px 15px rgba(255,0,122,0.3)' : 'none' }}>
+                <span style={{ fontSize: '1.1rem' }}>{i === 0 ? '👑' : `${i + 1}.`} {j.avatar} {j.nombre} {j.pinocho ? '🤥' : ''}</span>
+                <span style={{ fontSize: '1.1rem' }}>{j.puntos} pts</span>
               </div>
             ))}
           </div>
 
-          <button style={{ ...estilos.botonSecundario, maxWidth: '380px' }} onClick={() => { localStorage.removeItem('realOnes_sesion'); window.location.reload(); }}>
+          <button style={{ ...estilos.botonPrincipal, maxWidth: '300px' }} onClick={() => { reproducirSonido('click'); window.location.reload(); }}>
             VOLVER A EMPEZAR
+          </button>
+        </div>
+      )}
+            
+            <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: '#00FFA3', borderBottom: '1px solid rgba(0,255,163,0.3)', paddingBottom: '8px', marginBottom: '20px', letterSpacing: '1px' }}>
+              EXPEDIENTE OFICIAL
+            </h3>
+            
+            <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '5px', color: '#A09FB1' }}>
+              Sujeto: <span style={{ color: '#FFF', fontWeight: '800' }}>{miJugador.avatar} {miJugador.nombre}</span>
+            </p>
+            <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '25px', color: '#A09FB1' }}>
+              Toxicidad Acumulada: <span style={{ color: '#FF007A', fontWeight: '900' }}>{miJugador.puntos} pts</span>
+            </p>
+            
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '900', lineHeight: '1.2', marginBottom: '15px', color: '#FFF' }}>
+              "{miPerfil.titulo}"
+            </h2>
+            <p style={{ fontSize: '1.05rem', lineHeight: '1.6', color: '#E0E0E0', marginBottom: '30px' }}>
+              {miPerfil.descripcion}
+            </p>
+
+            {/* MARCA DE AGUA PARA INSTAGRAM */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', textAlign: 'center' }}>
+              <h4 style={{ margin: 0, color: '#FFF', fontSize: '1.2rem', fontWeight: '900', letterSpacing: '2px', textShadow: '0 0 10px rgba(0,255,163,0.5)' }}>SIN CARETA</h4>
+              <p style={{ margin: 0, color: '#00FFA3', fontSize: '0.9rem', fontWeight: 'bold' }}>#JuegoSinCareta</p>
+            </div>
+          </div>
+
+          <button style={estilos.botonInstagram} onClick={descargarProntuario}>
+            📸 DESCARGAR PARA INSTAGRAM
+          </button>
+          
+          <button style={{ ...estilos.botonSecundario, marginTop: '5px', maxWidth: '300px', background: '#FFD700' }} onClick={() => { reproducirSonido('click'); window.open('https://cafecito.app', '_blank'); }}>
+            🍻 INVITAME UNA BIRRA
+          </button>
+
+          <h3 style={{ color: '#FFF', margin: '25px 0 15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TABLA DE POSICIONES:</h3>
+          <div style={{ width: '100%', maxWidth: '380px', marginBottom: '30px' }}>
+            {jugadores.map((j, i) => (
+              <div key={i} style={{ background: i === 0 ? 'linear-gradient(45deg, #00FFA3, #00B8FF)' : 'rgba(255,255,255,0.05)', color: i === 0 ? '#000' : '#FFF', padding: '12px 15px', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                <span>{i + 1}. {j.avatar} {j.nombre} {j.pinocho ? '🤥' : ''}</span>
+                <span>{j.puntos} pts</span>
+              </div>
+            ))}
+          </div>
+
+          <button style={{ ...estilos.botonPrincipal, maxWidth: '300px' }} onClick={() => { reproducirSonido('click'); window.location.reload(); }}>
+            VOLVER AL INICIO
           </button>
         </div>
       )}
