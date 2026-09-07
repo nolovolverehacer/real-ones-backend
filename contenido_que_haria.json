@@ -1,6 +1,6 @@
 [
   {
-    "texto": "¿Cuántas veces creés que revisó el Instagram de un ex esta semana?",
+    "texto": "¿Cuántas veces creés que {nombre} revisó el Instagram de un ex esta semana?",
     "opciones": [
       { "letra": "A", "texto": "Nunca, ya pasó de página", "severidad": 0 },
       { "letra": "B", "texto": "Una vez, sin querer", "severidad": 3 },
@@ -9,7 +9,7 @@
     ]
   },
   {
-    "texto": "Si tuviera que inventar una excusa para no ir a un cumpleaños, ¿qué tan elaborada sería?",
+    "texto": "Si {nombre} tuviera que inventar una excusa para no ir a un cumpleaños, ¿qué tan elaborada sería?",
     "opciones": [
       { "letra": "A", "texto": "\"Estoy cansado\", así, sin vueltas", "severidad": 0 },
       { "letra": "B", "texto": "Un compromiso laboral inventado en el momento", "severidad": 3 },
@@ -18,7 +18,7 @@
     ]
   },
   {
-    "texto": "¿Qué tan capaz es de hablar mal de vos apenas te das vuelta?",
+    "texto": "¿Qué tan capaz es {nombre} de hablar mal de vos apenas te das vuelta?",
     "opciones": [
       { "letra": "A", "texto": "Jamás, es de fierro", "severidad": 0 },
       { "letra": "B", "texto": "Un comentario suelto, sin mala intención", "severidad": 3 },
@@ -27,7 +27,7 @@
     ]
   },
   {
-    "texto": "¿Cuánto tardaría en reemplazarte si te mudás a otro país mañana?",
+    "texto": "¿Cuánto tardaría {nombre} en reemplazarte si te mudás a otro país mañana?",
     "opciones": [
       { "letra": "A", "texto": "Nunca, sos irremplazable para esa persona", "severidad": 0 },
       { "letra": "B", "texto": "Un par de meses de duelo real", "severidad": 3 },
@@ -36,16 +36,16 @@
     ]
   },
   {
-    "texto": "Si encontrara plata en la calle y nadie lo vio, ¿qué haría?",
+    "texto": "Si {nombre} encontrara plata en la calle y nadie lo vio, ¿qué haría?",
     "opciones": [
       { "letra": "A", "texto": "Trata de devolverla a como dé lugar", "severidad": 0 },
       { "letra": "B", "texto": "Se la queda, pero le queda la conciencia sucia una semana", "severidad": 3 },
-      { "letra": "C", "texto": "Se la queda y se compra algo para vos, para calmar la culpa", "severidad": 6 },
+      { "letra": "C", "texto": "Se la queda y se compra algo, para calmar la culpa", "severidad": 6 },
       { "letra": "D", "texto": "Se la queda y encima cuenta la anécdota como si fuera gracioso", "severidad": 10 }
     ]
   },
   {
-    "texto": "¿Qué tan capaz es de mentirle a la cara a su pareja sobre dónde estuvo anoche?",
+    "texto": "¿Qué tan capaz es {nombre} de mentirle a la cara a su pareja sobre dónde estuvo anoche?",
     "opciones": [
       { "letra": "A", "texto": "No sabe mentir, se le nota todo", "severidad": 0 },
       { "letra": "B", "texto": "Suaviza la verdad, pero no inventa nada nuevo", "severidad": 3 },
@@ -54,7 +54,7 @@
     ]
   },
   {
-    "texto": "¿Qué tan lejos llegaría con tal de tener razón en una discusión?",
+    "texto": "¿Qué tan lejos llegaría {nombre} con tal de tener razón en una discusión?",
     "opciones": [
       { "letra": "A", "texto": "Reconoce cuando pierde, sin drama", "severidad": 0 },
       { "letra": "B", "texto": "Insiste un rato de más, pero afloja", "severidad": 3 },
@@ -63,7 +63,7 @@
     ]
   },
   {
-    "texto": "¿Qué tan capaz es de fingir que le interesa lo que le estás contando?",
+    "texto": "¿Qué tan capaz es {nombre} de fingir que le interesa lo que le estás contando?",
     "opciones": [
       { "letra": "A", "texto": "Si no le interesa, te lo dice de una", "severidad": 0 },
       { "letra": "B", "texto": "Asiente de más, pero se le nota un poco", "severidad": 3 },
